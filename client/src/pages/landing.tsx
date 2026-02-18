@@ -125,6 +125,11 @@ export default function MainPage() {
     queryKey: ["/api/event-settings"],
   });
 
+  // Fetch current user info
+  const { data: user } = useQuery<{ id: number; name: string; role: string }>({
+    queryKey: ["/api/me"],
+  });
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/logout");
@@ -168,7 +173,9 @@ export default function MainPage() {
               )}
             </button>
             <Gavel className="w-5 h-5 text-primary" />
-            <h1 className="font-bold text-sm tracking-tight">Elite Auction</h1>
+            <h1 className="font-bold text-sm tracking-tight">
+              {user?.name || "Elite Auction"}
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             {eventSettings?.endTime && (
