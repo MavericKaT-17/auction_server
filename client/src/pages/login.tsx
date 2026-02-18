@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query"; // 👈 added useQueryClient
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function LoginPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient(); // 👈 get the query client instance
   const [accountId, setAccountId] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -27,6 +28,12 @@ export default function LoginPage() {
       return res.json();
     },
     onSuccess: (data: { id: number; name: string; role: string }) => {
+      // 👇 Invalidate user‑specific queries so they refetch with the new user's data
+      queryClient.invalidateQueries({ queryKey: ["/api/bids/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      // Optionally, you can also clear the entire cache:
+      // queryClient.clear();
+
       if (data.role === "admin") {
         navigate("/admin");
       } else {

@@ -1,10 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Gavel, Clock, ArrowLeft, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import {
+  Gavel,
+  Clock,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Receipt,
+  Loader2,
+} from "lucide-react";
 import { useState, useEffect } from "react";
+import { apiRequest } from "@/lib/queryClient";
 import type { AuctionItem, EventSettings } from "@shared/schema";
 
 const ITEMS_PER_PAGE = 10;
@@ -26,14 +35,18 @@ function CountdownBar({ endTime }: { endTime: string }) {
       const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const m = Math.floor((diff / (1000 * 60)) % 60);
       const s = Math.floor((diff / 1000) % 60);
-      setTimeLeft(`${d}d ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+      setTimeLeft(
+        `${d}d ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+      );
     }, 1000);
     return () => clearInterval(timer);
   }, [endTime]);
 
   if (isExpired) {
     return (
-      <span className="text-destructive font-semibold text-xs">Auction Ended</span>
+      <span className="text-destructive font-semibold text-xs">
+        Auction Ended
+      </span>
     );
   }
 
@@ -47,7 +60,10 @@ function CountdownBar({ endTime }: { endTime: string }) {
 
 function ItemCard({ item, onClick }: { item: AuctionItem; onClick: () => void }) {
   return (
-    <Card className="overflow-visible hover-elevate active-elevate-2 cursor-pointer" onClick={onClick}>
+    <Card
+      className="overflow-visible hover-elevate active-elevate-2 cursor-pointer"
+      onClick={onClick}
+    >
       <CardContent className="p-0">
         <div className="flex gap-3">
           <div className="w-28 h-28 flex-shrink-0 rounded-l-md overflow-hidden bg-muted">
@@ -67,7 +83,10 @@ function ItemCard({ item, onClick }: { item: AuctionItem; onClick: () => void })
             </h3>
             {item.startingPrice > 0 && (
               <p className="text-xs text-muted-foreground">
-                Starting at <span className="font-semibold text-foreground">${item.startingPrice.toLocaleString()}</span>
+                Starting at{" "}
+                <span className="font-semibold text-foreground">
+                  ${item.startingPrice.toLocaleString()}
+                </span>
               </p>
             )}
           </div>
@@ -95,6 +114,7 @@ function ItemSkeleton() {
 
 export default function MainPage() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data: items, isLoading: itemsLoading } = useQuery<AuctionItem[]>({
@@ -103,6 +123,20 @@ export default function MainPage() {
 
   const { data: eventSettings } = useQuery<EventSettings>({
     queryKey: ["/api/event-settings"],
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      // Clear user‑specific data from cache
+      queryClient.invalidateQueries({ queryKey: ["/api/bids/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      // Optionally clear everything:
+      // queryClient.clear();
+      navigate("/");
+    },
   });
 
   const totalItems = items?.length || 0;
@@ -123,10 +157,15 @@ export default function MainPage() {
           <div className="flex items-center gap-2">
             <button
               data-testid="button-back-to-landing"
-              onClick={() => navigate("/")}
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
               className="text-muted-foreground"
             >
-              <ArrowLeft className="w-5 h-5" />
+              {logoutMutation.isPending ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ArrowLeft className="w-5 h-5" />
+              )}
             </button>
             <Gavel className="w-5 h-5 text-primary" />
             <h1 className="font-bold text-sm tracking-tight">Elite Auction</h1>
@@ -154,9 +193,10 @@ export default function MainPage() {
               About This Event
             </h2>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Welcome to our exclusive charity gala auction. Each item has been thoughtfully curated 
-              from the world's finest collections. Your generous bids support vital philanthropic 
-              initiatives around the globe. All bids are sealed and confidential -- one bid per item, 
+              Welcome to our exclusive charity gala auction. Each item has been
+              thoughtfully curated from the world's finest collections. Your
+              generous bids support vital philanthropic initiatives around the
+              globe. All bids are sealed and confidential -- one bid per item,
               no changes permitted.
             </p>
           </CardContent>
@@ -189,14 +229,19 @@ export default function MainPage() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <Gavel className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">No auction items available yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No auction items available yet.
+                  </p>
                 </CardContent>
               </Card>
             )}
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6 pb-4" data-testid="pagination-controls">
+            <div
+              className="flex items-center justify-center gap-2 mt-6 pb-4"
+              data-testid="pagination-controls"
+            >
               <Button
                 data-testid="button-prev-page"
                 variant="outline"

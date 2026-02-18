@@ -88,9 +88,6 @@ export async function registerRoutes(
       }
 
       const userId = (req.session as any)?.userId;
-      console.log(`[BID] User ID from session: ${userId}`);
-      console.log(`[BID CREATE] User ID from session: ${userId}, Item: ${itemId}, Amount: ${amount}`);
-
       if (!userId) {
         return res.status(401).json({ message: "You must be logged in to place a bid." });
       }
@@ -109,7 +106,6 @@ export async function registerRoutes(
 
   app.get("/api/bids/my", async (req, res) => {
     const userId = (req.session as any)?.userId;
-    console.log(`[MY BIDS] User ID from session: ${userId}`);
     if (!userId) return res.status(401).json({ message: "Not logged in" });
     const userBids = await storage.getBidsByUser(userId);
     res.json(userBids);
